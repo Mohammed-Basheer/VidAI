@@ -1,0 +1,24 @@
+# ==========================================
+# Phase 1: Audio Processing & Transcription
+# ==========================================
+yt-dlp>=2026.8.19       # Keep current: YouTube breaks old versions (format-not-available errors)
+pydub==0.25.1           # For chunking and converting audio to 16kHz mono
+imageio-ffmpeg>=0.5.1   # Ships an ffmpeg binary so yt-dlp/pydub work without a system install
+groq>=0.32.0            # Hosted Whisper transcription API
+python-dotenv==1.0.1    # For managing environment variables/API keys
+
+# ==========================================
+# Phase 2: LangChain & Vector Storage (pgvector)
+# ==========================================
+langchain-core==0.2.27  # Prompts, runnables, and output parsers (LCEL)
+langchain-postgres==0.0.12 # PGVector integration
+greenlet>=3.0.0         # Required by SQLAlchemy's async engine, used internally by langchain-postgres
+psycopg[binary]>=3.1.12,<4 # PostgreSQL driver for PGVector
+langchain-text-splitters>=0.2.0,<0.3.0 # Transcript text chunking
+langchain-mistralai>=0.1.6,<0.2.0 # Mistral chat model integration
+langchain-huggingface==0.0.3 # Local open-source embeddings (BGE/MiniLM)
+
+# ==========================================
+# Phase 3: Chat UI
+# ==========================================
+chainlit>=2.0.0         # Chat UI for uploading videos and asking questions
