@@ -20,6 +20,7 @@ SESSION_CHAT_HISTORY = "chat_history"
 SESSION_TITLE = "title"
 SESSION_SUMMARY = "summary"
 SESSION_INSIGHTS = "insights"
+SESSION_PENDING_FILES = "pending_files"  # temp files for the in-progress video, if Cancel is clicked mid-run
 
 
 def format_history(history: list[tuple[str, str]]) -> str:
@@ -37,10 +38,24 @@ async def on_chat_start() -> None:
     cl.user_session.set(SESSION_INGESTED, False)
     cl.user_session.set(SESSION_VIDEO_ID, None)
     cl.user_session.set(SESSION_CHAT_HISTORY, [])
+    cl.user_session.set(SESSION_PENDING_FILES, None)
     await cl.Message(
         content="Paste a YouTube URL or local audio file path to process a video. "
         "Once it's ingested, ask questions about it here."
     ).send()
+
+
+@cl.on_stop
+async def on_stop() -> None:
+    # The asyncio task behind process_source() is cancelled here, but any blocking
+    # work already dispatched to a worker thread (download/transcribe/summarize calls)
+    # keeps running in the background regardless - we can only clean up local files and state.
+    pending_files = cl.user_session.get(SESSION_PENDING_FILES)
+    if pending_files:
+        cleanup_files(pending_files)
+    cl.user_session.set(SESSION_PENDING_FILES, None)
+    cl.user_session.set(SESSION_INGESTED, False)
+    cl.user_session.set(SESSION_VIDEO_ID, None)
 
 
 @cl.on_message
@@ -70,6 +85,7 @@ async def process_source(source: str) -> None:
     async with cl.Step(name="Processing video") as step:
         step.output = "Downloading/chunking audio..."
         chunks = await asyncio.to_thread(process_input, source)
+        cl.user_session.set(SESSION_PENDING_FILES, chunks)  # so on_stop can clean these up if cancelled now
 
         step.output = "Transcribing..."
         transcript = await asyncio.to_thread(transcribe_chunks, chunks)
@@ -85,6 +101,7 @@ async def process_source(source: str) -> None:
         step.output = "Cleaning up temporary audio files..."
         await asyncio.to_thread(cleanup_files, chunks)
 
+    cl.user_session.set(SESSION_PENDING_FILES, None)
     cl.user_session.set(SESSION_INGESTED, True)
     cl.user_session.set(SESSION_VIDEO_ID, video_id)
     cl.user_session.set(SESSION_CHAT_HISTORY, [])  # new video, so drop Q&A history from any previous one
