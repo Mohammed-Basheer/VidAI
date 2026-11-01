@@ -92,6 +92,14 @@ sequenceDiagram
     end
 ```
 
+## Models used
+
+| Purpose | Model | Where it runs |
+| --- | --- | --- |
+| Audio transcription | `whisper-large-v3-turbo` | Groq API |
+| Summary, title, content insights, and Q&A | `ministral-3b-2512` | Mistral API |
+| Transcript and question embeddings | `BAAI/bge-small-en-v1.5` | Locally on CPU via Hugging Face / Sentence Transformers |
+
 ## Running it
 
 ```powershell
